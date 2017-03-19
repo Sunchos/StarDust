@@ -4,34 +4,117 @@
 --
 -----------------------------------------------------------------------------------------
 
-local score = 0
-local lives = 5
+local physics = require("physics")
+physics.start()
+physics.setGravity(0, 0)
 
-background = display.newImage("res/img/paralax_space2.png")
+math.randomseed(os.time())
+
+-- Configure image sheet
+
+local sheetOptions  = 
+{
+	frames = 
+	{
+		{ -- 1) Green fly.
+			x = 0,
+			y = 0,
+			width = 120,
+			height = 128
+		},
+		{ -- 2) Red fly.
+			x = 8,
+			y = 129,
+			width = 104,
+			height = 80
+		},
+		{ -- 3) Yellow bee.
+			x = 16,
+			y = 210,
+			width = 88,
+			height = 80
+		},
+		{ -- 4) Heart.
+			x = 8,
+			y = 291,
+			width = 104,
+			height = 88
+		},
+		{ -- 5) Red ship player.
+			x = 121,
+			y = 0,
+			width = 136,
+			height = 152
+		},
+		{ -- 6) White ship player.
+			x = 121,
+			y = 153,
+			width = 136,
+			height = 152
+		},
+		{ -- 7) Player rocket.
+			x = 121,
+			y = 306,
+			width = 24,
+			height = 48
+		},
+		{ -- 8) Enemy rocket.
+			x = 146,
+			y = 306,
+			width = 24,
+			height = 48
+		},
+		{ -- 9) Short model ship, this for lives.
+			x = 171,
+			y = 306,
+			width = 21,
+			height = 23
+		},
+	},
+}
+
+local objectSheet = graphics.newImageSheet("res/img/SpriteSheet.png", sheetOptions)
+
+if(objectSheet == nil) then
+	print("empty!")
+end
+
+-- Initialize variables
+local score = 0
+local lives = 3
+local died = false
+
+local enemiesTable = {}
+local gameLoopTimer
+
+-- Set up display groups.
+
+local backGroup = display.newGroup() -- Display group for the background image.
+local mainGroup = display.newGroup() -- Display group for the ship, enemies and etc.
+local uiGroup = display.newGroup() -- Display group for the UI object like  the score.
+
+-- Load the background.
+
+local background = display.newImage(backGroup, "res/img/paralax_space2.png")
 background.x = display.contentWidth
 background.y = display.contentHeight
 
-local scoreText = display.newText("Score: " .. score, display.contentCenterX  - 100 ,  display.contentCenterY - 230 , native.systemFont, 20 )
-local livesText = display.newText("Lives: " .. lives, display.contentCenterX + 100, display.contentCenterY - 230, native.systemFont, 20)
+-- Load the ship.
+local ship = display.newImageRect(mainGroup, objectSheet , 6, 45, 51) -- devide by 3 width = 136 and height = 152
+ship.x = display.contentCenterX
+ship.y = display.contentHeight - 60
+physics.addBody(ship, {radius = 30, isSensor = true})
+ship.myName = "ship"
 
-local centerRect = display.newImage("res/img/redShip.png")
-centerRect.x = display.contentWidth / 2
-centerRect.y = display.contentHeight / 2
+-- Load the text.
+local scoreText = display.newText(uiGroup, "Score: " .. score, display.contentCenterX  - 100 ,  display.contentCenterY - 230 , native.systemFont, 20 )
+local livesText = display.newText(uiGroup, "Lives: " .. lives, display.contentCenterX + 100, display.contentCenterY - 230, native.systemFont, 20)
 
-function centerRect:touch(event)
-	if event.phase == "began" then
-		display.getCurrentStage():setFocus(self)
-		self.isFocus = true
-	elseif self.isFocus then
-		if event.phase == "moved" then
-			print("moved phase")
-		elseif event.phase == "ended" or event.phase == "cancelled" then
-			display.getCurrentStage():setFocus(nil)
-			self.isFocus = false
-		end
-	end
-	
-		return true
+-- Hide the status bar.
+display.setStatusBar( display.HiddenStatusBar )
+
+-- Update Text function.
+local function UpdateText()
+	livesText.text = "Lives: " .. lives
+	scoreText.text = "Score: " .. score
 end
-
-centerRect:addEventListener("touch" , centerRect)
