@@ -100,7 +100,7 @@ background.x = display.contentWidth
 background.y = display.contentHeight
 
 -- Load the ship.
-local ship = display.newImageRect(mainGroup, objectSheet , 6, 45, 51) -- devide by 3 width = 136 and height = 152
+local ship = display.newImageRect(mainGroup, objectSheet , 6, 45, 51) -- divided by 3 width = 136 / 3 and height = 152 / 3
 ship.x = display.contentCenterX
 ship.y = display.contentHeight - 60
 physics.addBody(ship, {radius = 30, isSensor = true})
