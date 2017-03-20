@@ -117,4 +117,36 @@ display.setStatusBar( display.HiddenStatusBar )
 local function UpdateText()
 	livesText.text = "Lives: " .. lives
 	scoreText.text = "Score: " .. score
-end
+end -- UpdateText function.
+
+-- Create Enemies.
+--local function CreateEnemy()
+	--local newEnemy = 
+--end
+
+-- Move Ship.
+local function DragShip(event)
+	
+	local ship = event.target
+	local phase = event.phase
+	
+	if( "began" == phase) then
+		-- Set touch focus on the ship.
+		display.currentStage:setFocus( ship )
+		-- Store initial offset position.
+		ship.touchOffsetX = event.x - ship.x
+	
+	elseif("moved" == phase) then
+		-- Move the ship to the new touch position.
+		ship.x = event.x - ship.touchOffsetX
+		
+	elseif("ended" == phase or "cancelled" == phase) then
+		-- Release touch focus on the ship.
+		display.currentStage:setFocus( nil )
+	end
+	
+	return true -- Prevents touch propagation to underlying objects.
+	
+end -- DragShip function.
+
+ship:addEventListener( "touch", DragShip )
