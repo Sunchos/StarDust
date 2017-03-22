@@ -16,19 +16,19 @@ local sheetOptions  =
 {
 	frames = 
 	{
-		{ -- 1) Green fly.
+		{ -- 1) GreenFly.
 			x = 0,
 			y = 0,
 			width = 120,
 			height = 128
 		},
-		{ -- 2) Red fly.
+		{ -- 2) RedFly.
 			x = 8,
 			y = 129,
 			width = 104,
 			height = 80
 		},
-		{ -- 3) Yellow bee.
+		{ -- 3) YellowBee.
 			x = 16,
 			y = 210,
 			width = 88,
@@ -81,13 +81,15 @@ end
 
 -- Initialize variables
 local score = 0
-local lives = 3
+local lives = 5
 local died = false
 
 local enemiesTable = {}
 local gameLoopTimer
+local typeEnemy = 0
 
 local count = 1
+local maxEnemies = 20
 
 -- Set up display groups.
 
@@ -125,10 +127,54 @@ local function UpdateText()
 	yPosText.text = "y: " .. ship.y
 end -- UpdateText function.
 
+local function RestoreShip()
+	ship.isBodyActive = false
+    ship.x = display.contentCenterX
+    ship.y = display.contentHeight - 60
+ 
+    -- Fade in the ship
+    transition.to( ship, { alpha=1, time=4000,
+        onComplete = function()
+            ship.isBodyActive = true
+            died = false
+        end
+    } )
+end -- RestoreShip function.
+
 -- Create Enemies.
---local function CreateEnemy()
-	--local newEnemy = 
---end
+local function CreateEnemy(typeEnemy)
+	local newEnemy
+	if (typeEnemy == 1) then -- GreenFly.
+		newEnemy = display.newImageRect(mainGroup, objectSheet , 1, 40, 42) 
+	elseif(typeEnemy == 2) then -- RedFly.
+		newEnemy = display.newImageRect(mainGroup, objectSheet , 2, 34, 26) 
+	elseif(typeEnemy == 3) then -- YellowBee.
+		newEnemy = display.newImageRect(mainGroup, objectSheet , 3, 29, 26) 
+	end
+	
+	table.insert(enemiesTable, newEnemy)
+	physics.addBody(newEnemy, "dynamic", {radius = 20, bounce = 0.0})
+	newEnemy.myName = "enemy"
+
+    local whereFrom = math.random( 3 )
+	
+	if( whereFrom == 1) then
+		newEnemy.x = -60
+		newEnemy.y = math.random( 100 )
+		newEnemy:setLinearVelocity( math.random( 40,120 ), math.random( 20,60 ) )
+	 elseif ( whereFrom == 2 ) then
+        -- From the top
+        newEnemy.x = math.random( display.contentWidth )
+        newEnemy.y = -60
+        newEnemy:setLinearVelocity( math.random( -40,40 ), math.random( 40,120 ) )
+    elseif ( whereFrom == 3 ) then
+        -- From the right
+        newEnemy.x = display.contentWidth + 60
+        newEnemy.y = math.random( 100 )
+        newEnemy:setLinearVelocity( math.random( -120,-40 ), math.random( 20,60 ) )
+    end
+	 
+end
 
 -- Fire Rocket function it works by tapping ship .
 local function FireRocket()
@@ -161,6 +207,7 @@ end -- FireRocket function.
 -- Buttons on screen.
 
 local widget = require( "widget" )
+local widget2 = require( "widget")
 
 --Function to handle button events for firebutton.
 local function HandleFireButtonEvent(event)
@@ -170,7 +217,7 @@ local function HandleFireButtonEvent(event)
 	end
 end -- HandleFireButtonEvent
 
-local fireButton = widget.newButton
+local fireButton = widget2.newButton
 {
 	left = display.contentCenterX - 150,
 	top = display.contentHeight - 20,
@@ -189,7 +236,7 @@ local function HandleRightButtonEvent(event)
 		-- Move the ship to the new touch position.
 		ship.x =ship. x + 5 ]]--
 	if("ended" == phase) then
-		ship.x = ship. x + 5
+		ship.x = ship. x + 1
 	end
 	
 	if (ship.x > 296 or ship.x == 296) then
@@ -218,9 +265,9 @@ local function HandleleftButtonEvent(event)
 		-- Move the ship to the new touch position.
 		ship.x =ship. x - 5 ]]--
 	if("ended" == phase) then
-		ship.x = ship. x - 5
+			ship.x = ship. x - 1
 	end
-	
+
 	if(ship.x < 23 or ship.x == 23) then
 		ship.x = 23
 	end
@@ -250,12 +297,12 @@ local function DragShip(event)
 		display.currentStage:setFocus( ship )
 		-- Store initial offset position.
 		ship.touchOffsetX = event.x - ship.x
-		ship.touchOffsetY = event.y - ship.y
+		--ship.touchOffsetY = event.y - ship.y
 	
 	elseif("moved" == phase) then
 		-- Move the ship to the new touch position.
 		ship.x = event.x - ship.touchOffsetX
-		ship.y = event.y - ship.touchOffsetY
+		--ship.y = event.y - ship.touchOffsetY
 		
 	elseif("ended" == phase or "cancelled" == phase) then
 		-- Release touch focus on the ship.
@@ -273,8 +320,86 @@ local function DragShip(event)
 	
 end -- DragShip function.
 
--- SetUp Events.
+local function OnCollision( event )
+	if( event.phase == "began" ) then
+		local obj1 = event.object1
+		local obj2 = event.object2
+		
+		if((obj1.myName == "rocket" and obj2.myName == "enemy") or
+			(obj1.myName == "enemy" and obj2.myName == "rocket")) then
+			 -- Remove both the rocket and enemy.
+			display.remove(obj1)
+			display.remove(obj2)
+			
+			for i = #enemiesTable, 1, -1 do
+				if(enemiesTable[i] == obj1 or enemiesTable[i] == obj2) then
+					table.remove(enemiesTable, i)
+				end
+			end
+			
+			-- Increase score.
+			score = score + 100
+			if((score % 20000) == 0) then
+				lives = lives + 1
+			end
+			
+		elseif((obj1.myName == "ship" and obj2.myName == "enemy") or
+				  (obj1.myName == "enemy" and obj2.myName == "ship")) then
+			 if( died == false) then
+					died = true
+					
+					-- Update lives.
+					lives = lives - 1
+					
+                    if ( lives == 0 ) then
+                        display.remove( ship )
+                    else
+                        ship.alpha = 0
+                        timer.performWithDelay( 1000, RestoreShip )
+                     end
+					
+			 end
+		end
+		
+	end
+	
+	UpdateText()
+end -- OnCollision.
+
+-- SetUp Events. --
 
 -- Ship events.
 ship:addEventListener("tap", FireRocket )
 ship:addEventListener( "touch", DragShip )
+-- Game events.
+Runtime:addEventListener( "collision", OnCollision )
+
+countEnemys = 1
+
+local enemiMoves
+-- Loop function.
+local function GameLoop()
+
+	if(maxEnemies >= countEnemys) then
+		CreateEnemy(math.random(3))
+		countEnemys = countEnemys + 1
+	end
+	
+	for i = #enemiesTable, 1, -1 do
+		local thisEnemy = enemiesTable[i]
+		if(thisEnemy.x < -100 or 
+		thisEnemy.x > display.contentWidth + 100 or
+		thisEnemy.y < -100 or 
+		thisEnemy.y > display.contentHeight + 100) then
+			display.remove(thisEnemy)
+			table.remove(enemiesTable, i)
+		end
+    end
+	
+	if #enemiesTable == 0 then
+		countEnemys = 0
+	end
+	
+end
+
+gameLoopTimer = timer.performWithDelay( 500, GameLoop, 0) 
