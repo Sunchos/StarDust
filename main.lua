@@ -4,6 +4,14 @@
 --
 -----------------------------------------------------------------------------------------
 
+-- Use the require function to include the Corona "composer" module so 
+-- we can create a new scene.
+local composer = require( "composer" )
+
+-- Use composer to create a new scene. 
+local scene = composer.newScene()
+
+system.activate("multitouch")
 local physics = require("physics")
 physics.start()
 physics.setGravity(0, 0)
@@ -89,7 +97,12 @@ local gameLoopTimer
 local typeEnemy = 0
 
 local count = 1
-local maxEnemies = 20
+local maxEnemies = 4
+
+local prevTime = nil
+-- Add bool type for left button and right.
+local pressedLieftBtn = false
+local pressedRightBtn = false
 
 -- Set up display groups.
 
@@ -106,31 +119,47 @@ background.y = display.contentHeight
 -- Load the ship.
 local ship = display.newImageRect(mainGroup, objectSheet , 6, 45, 51) -- divided by 3 width = 136 / 3 and height = 152 / 3
 ship.x = display.contentCenterX
-ship.y = display.contentHeight - 60
+ship.y = display.contentCenterY + 150
 physics.addBody(ship, {radius = 30, isSensor = true})
 ship.myName = "ship"
 
 -- Load the text.
 local scoreText = display.newText(uiGroup, "Score: " .. score, display.contentCenterX  - 100 ,  display.contentCenterY - 230 , native.systemFont, 20 )
 local livesText = display.newText(uiGroup, "Lives: " .. lives, display.contentCenterX + 100, display.contentCenterY - 230, native.systemFont, 20)
-local xPosText = display.newText(uiGroup, "x: " .. ship.x, display.contentCenterX  - 100 ,  display.contentCenterY - 210 , native.systemFont, 20)
-local yPosText = display.newText(uiGroup, "y: " .. ship.y, display.contentCenterX  - 100 ,  display.contentCenterY - 190 , native.systemFont, 20)
+--local xPosText = display.newText(uiGroup, "x: " .. ship.x, display.contentCenterX  - 100 ,  display.contentCenterY - 210 , native.systemFont, 20)
+--local yPosText = display.newText(uiGroup, "y: " .. ship.y, display.contentCenterX  - 100 ,  display.contentCenterY - 190 , native.systemFont, 20)
 
 -- Hide the status bar.
 display.setStatusBar( display.HiddenStatusBar )
+
+-- Returns Delta time
+local function GetDeltaTime()
+
+	if(prevTime == nil) then
+		return 0
+	end
+	
+	local currentTime = system.getTimer()
+	local deltaTime = currentTime - prevTime
+	prevTime = currentTime
+	
+	return deltaTime
+end
 
 -- Update Text function.
 local function UpdateText()
 	livesText.text = "Lives: " .. lives
 	scoreText.text = "Score: " .. score
-	xPosText.text = "x: " .. ship.x
-	yPosText.text = "y: " .. ship.y
+	--if(ship.isBodyActive == true) then
+		--xPosText.text = "x: " .. ship.x
+		--yPosText.text = "y: " .. ship.y
+	--end
 end -- UpdateText function.
 
 local function RestoreShip()
 	ship.isBodyActive = false
     ship.x = display.contentCenterX
-    ship.y = display.contentHeight - 60
+    ship.y = display.contentHeight - 70
  
     -- Fade in the ship
     transition.to( ship, { alpha=1, time=4000,
@@ -142,7 +171,7 @@ local function RestoreShip()
 end -- RestoreShip function.
 
 -- Create Enemies.
-local function CreateEnemy(typeEnemy)
+local function CreateEnemy(typeEnemy, xPos, yPos)
 	local newEnemy
 	if (typeEnemy == 1) then -- GreenFly.
 		newEnemy = display.newImageRect(mainGroup, objectSheet , 1, 40, 42) 
@@ -156,23 +185,8 @@ local function CreateEnemy(typeEnemy)
 	physics.addBody(newEnemy, "dynamic", {radius = 20, bounce = 0.0})
 	newEnemy.myName = "enemy"
 
-    local whereFrom = math.random( 3 )
-	
-	if( whereFrom == 1) then
-		newEnemy.x = -60
-		newEnemy.y = math.random( 100 )
-		newEnemy:setLinearVelocity( math.random( 40,120 ), math.random( 20,60 ) )
-	 elseif ( whereFrom == 2 ) then
-        -- From the top
-        newEnemy.x = math.random( display.contentWidth )
-        newEnemy.y = -60
-        newEnemy:setLinearVelocity( math.random( -40,40 ), math.random( 40,120 ) )
-    elseif ( whereFrom == 3 ) then
-        -- From the right
-        newEnemy.x = display.contentWidth + 60
-        newEnemy.y = math.random( 100 )
-        newEnemy:setLinearVelocity( math.random( -120,-40 ), math.random( 20,60 ) )
-    end
+  newEnemy.x = xPos
+  newEnemy.y = yPos
 	 
 end
 
@@ -204,87 +218,103 @@ local function FireRocket()
 			})
 end -- FireRocket function.
 
+-- Fire Rocket for enemy.
+local function FireEnemy(xPos, yPos)
+	local newRocket = display.newImageRect(mainGroup, objectSheet, 8, 8, 16)
+	physics.addBody(newRocket, "dynamic", {radius = 20 ,isSensor = true} )
+	newRocket.isBullet = true
+	newRocket.myName = "enemyRocket"
+	
+	newRocket.x = xPos
+	newRocket.y = yPos
+	
+	
+	newRocket:toBack()
+	
+	transition.to( newRocket, { y = display.contentHeight + 20, time = 5000, 
+			onComplete = function() display.remove(newRocket) end
+			})
+end
+
 -- Buttons on screen.
 
 local widget = require( "widget" )
-local widget2 = require( "widget")
 
 --Function to handle button events for firebutton.
 local function HandleFireButtonEvent(event)
-	local phase = event.phase
-	if("ended" == phase) then
+	if("ended" == event.phase and died == false) then
 		FireRocket()
+		return true
 	end
+	
+	return false
 end -- HandleFireButtonEvent
 
-local fireButton = widget2.newButton
+local fireButton = widget.newButton
 {
 	left = display.contentCenterX - 150,
-	top = display.contentHeight - 20,
-	width = 40,
-	height = 40,
+	top = display.contentHeight - 40,
+	width = 60,
+	height = 60,
 	defaultFile = "res/img/fire.png",
 	overFile = "res/img/fire.png",
 	onEvent = HandleFireButtonEvent,
 }
 
 local function HandleRightButtonEvent(event)
+
 	local phase = event.phase
-	--[[if("began" == phase) then
-		ship.x =ship. x + 5
-	elseif("moved" == phase) then
-		-- Move the ship to the new touch position.
-		ship.x =ship. x + 5 ]]--
-	if("ended" == phase) then
-		ship.x = ship. x + 1
+	
+	if(phase == "began") then
+		pressedRightBtn = true
+		return true
+	elseif(phase == "ended") then
+		pressedRightBtn = false
+		return true
 	end
 	
-	if (ship.x > 296 or ship.x == 296) then
-		ship.x = 296
-	end
-	
-	UpdateText()
+	return false
 end -- HandleRightButtonEvent
 
 local rightButton = widget.newButton
 {
-	left = display.contentCenterX + 110,
-	top = display.contentHeight - 20,
-	width = 40,
-	height = 40,
+	left = display.contentCenterX + 90,
+	top = display.contentHeight - 40,
+	width = 60,
+	height = 60,
 	defaultFile = "res/img/rightButton.png",
 	overFile = "res/img/rightButton.png",
 	onEvent = HandleRightButtonEvent,
 }
 
 local function HandleleftButtonEvent(event)
-	local phase = event.phase
-	--[[ if("began" == phase) then
-		ship.x =ship. x - 5
-	elseif("moved" == phase) then
-		-- Move the ship to the new touch position.
-		ship.x =ship. x - 5 ]]--
-	if("ended" == phase) then
-			ship.x = ship. x - 1
-	end
 
-	if(ship.x < 23 or ship.x == 23) then
-		ship.x = 23
+	local phase = event.phase
+	if(phase == "began") then
+		pressedLieftBtn = true
+		return true
+	elseif(phase == "ended") then
+		pressedLieftBtn = false
+		return true
 	end
 	
-	UpdateText()
+	return false
 end -- HandleLeftButtonEvent
 
 local leftButton = widget.newButton
 {
-	left = display.contentCenterX + 60,
-	top = display.contentHeight - 20,
-	width = 40,
-	height = 40,
+	left = display.contentCenterX + 30,
+	top = display.contentHeight - 40,
+	width = 60,
+	height = 60,
 	defaultFile = "res/img/leftButton.png",
 	overFile = "res/img/leftButton.png",
 	onEvent = HandleleftButtonEvent,
 }
+
+leftButton.alpha = 0.5
+rightButton.alpha = 0.5
+fireButton.alpha = 0.5
 
 -- Move ship function it works by dragging ship.
 local function DragShip(event)
@@ -298,7 +328,6 @@ local function DragShip(event)
 		-- Store initial offset position.
 		ship.touchOffsetX = event.x - ship.x
 		--ship.touchOffsetY = event.y - ship.y
-	
 	elseif("moved" == phase) then
 		-- Move the ship to the new touch position.
 		ship.x = event.x - ship.touchOffsetX
@@ -320,6 +349,7 @@ local function DragShip(event)
 	
 end -- DragShip function.
 
+-- It checks collision between ship, enemies and rockets.  
 local function OnCollision( event )
 	if( event.phase == "began" ) then
 		local obj1 = event.object1
@@ -339,12 +369,11 @@ local function OnCollision( event )
 			
 			-- Increase score.
 			score = score + 100
-			if((score % 20000) == 0) then
+			if((score % 20000) == 0 ) then
 				lives = lives + 1
 			end
-			
-		elseif((obj1.myName == "ship" and obj2.myName == "enemy") or
-				  (obj1.myName == "enemy" and obj2.myName == "ship")) then
+		elseif((obj1.myName == "ship" and obj2.myName == "enemyRocket") or
+				  (obj1.myName == "enemyRocket" and obj2.myName == "ship")) then
 			 if( died == false) then
 					died = true
 					
@@ -356,33 +385,94 @@ local function OnCollision( event )
                     else
                         ship.alpha = 0
                         timer.performWithDelay( 1000, RestoreShip )
-                     end
-					
+                    end
 			 end
+		elseif((obj1.myName == "rocket" and obj2.myName == "enemyRocket") or
+		(obj1.myName == "enemyRocket" and obj2.myName == "rocket")) then
+			 -- Remove both the rocket and enemy.
+			-- Increase score.
+			display.remove( obj1 )
+			display.remove (obj2)
+			score = score + 50
 		end
-		
 	end
 	
 	UpdateText()
+	return false
 end -- OnCollision.
+
+-- Move ship by controls buttons or maybe by keys 
+local function onFrame (event)
+	local deltaTime = GetDeltaTime()
+	local moveSpeed = (0.3 * deltaTime)
+	
+	if(pressedRightBtn == true and died == false) then
+	
+		ship.x = ship.x + moveSpeed
+		
+		if (ship.x > 296 or ship.x == 296) then
+			ship.x = 296
+		end
+		UpdateText()
+		return true
+	end
+	
+	if (pressedLieftBtn == true and died == false) then
+		
+		ship.x = ship.x - moveSpeed
+		
+		if(ship.x < 23 or ship.x == 23) then
+			ship.x = 23
+		end
+		UpdateText()
+		return true
+	end
+	
+	
+	return false
+end -- onFrame 
 
 -- SetUp Events. --
 
 -- Ship events.
 ship:addEventListener("tap", FireRocket )
 ship:addEventListener( "touch", DragShip )
+Runtime:addEventListener( "enterFrame", onFrame  )
 -- Game events.
 Runtime:addEventListener( "collision", OnCollision )
 
-countEnemys = 1
 
-local enemiMoves
+local countEnemys = 1
+
+local function SetEnemiesPosition()
+  local distance = 60
+  local xPos = display.contentWidth - 40
+  local yPos = display.contentCenterY - distance
+  for i = 0, maxEnemies do
+    for j = 1, 3 do
+      CreateEnemy(math.random(3), xPos , yPos)
+      yPos = yPos - 60
+    end
+    xPos = xPos - 60
+    yPos = display.contentCenterY - distance
+    countEnemys = countEnemys + 1
+  end
+end
+
 -- Loop function.
 local function GameLoop()
-
+	-- SetUp prevTime.
+    prevTime = system.getTimer()
+	
 	if(maxEnemies >= countEnemys) then
-		CreateEnemy(math.random(3))
-		countEnemys = countEnemys + 1
+		SetEnemiesPosition()
+	end
+
+	if(--[[math.round((prevTime % 1000) % 2)== 0 and]] #enemiesTable ~= 0) then
+		local thisFire =enemiesTable[math.random(#enemiesTable)]
+		if(thisFire ~= nil) then
+			FireEnemy(thisFire.x, thisFire.y)
+		end
 	end
 	
 	for i = #enemiesTable, 1, -1 do
@@ -394,7 +484,7 @@ local function GameLoop()
 			display.remove(thisEnemy)
 			table.remove(enemiesTable, i)
 		end
-    end
+  end
 	
 	if #enemiesTable == 0 then
 		countEnemys = 0
@@ -402,4 +492,4 @@ local function GameLoop()
 	
 end
 
-gameLoopTimer = timer.performWithDelay( 500, GameLoop, 0) 
+gameLoopTimer = timer.performWithDelay( 2000, GameLoop, 0) 
