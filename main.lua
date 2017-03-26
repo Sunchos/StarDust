@@ -104,6 +104,9 @@ local prevTime = nil
 local pressedLieftBtn = false
 local pressedRightBtn = false
 
+local currentSpeed = 2000
+local fireEnemiesSpeed = 4000
+
 -- Set up display groups.
 
 local backGroup = display.newGroup() -- Display group for the background image.
@@ -124,8 +127,8 @@ physics.addBody(ship, {radius = 30, isSensor = true})
 ship.myName = "ship"
 
 -- Load the text.
-local scoreText = display.newText(uiGroup, "Score: " .. score, display.contentCenterX  - 100 ,  display.contentCenterY - 230 , native.systemFont, 20 )
-local livesText = display.newText(uiGroup, "Lives: " .. lives, display.contentCenterX + 100, display.contentCenterY - 230, native.systemFont, 20)
+local scoreText = display.newText(uiGroup, "Score: " .. score, display.contentCenterX  - 100 ,  display.contentCenterY - 250 , native.systemFont, 20 )
+local livesText = display.newText(uiGroup, "Lives: " .. lives, display.contentCenterX + 100, display.contentCenterY - 250, native.systemFont, 20)
 --local xPosText = display.newText(uiGroup, "x: " .. ship.x, display.contentCenterX  - 100 ,  display.contentCenterY - 210 , native.systemFont, 20)
 --local yPosText = display.newText(uiGroup, "y: " .. ship.y, display.contentCenterX  - 100 ,  display.contentCenterY - 190 , native.systemFont, 20)
 
@@ -159,10 +162,10 @@ end -- UpdateText function.
 local function RestoreShip()
 	ship.isBodyActive = false
     ship.x = display.contentCenterX
-    ship.y = display.contentHeight - 70
+    ship.y = display.contentCenterY + 150
  
     -- Fade in the ship
-    transition.to( ship, { alpha=1, time=4000,
+    transition.to( ship, { alpha=1, time=3000,
         onComplete = function()
             ship.isBodyActive = true
             died = false
@@ -228,10 +231,9 @@ local function FireEnemy(xPos, yPos)
 	newRocket.x = xPos
 	newRocket.y = yPos
 	
-	
 	newRocket:toBack()
 	
-	transition.to( newRocket, { y = display.contentHeight + 20, time = 5000, 
+	transition.to( newRocket, { y = display.contentHeight + 20, time = fireEnemiesSpeed, 
 			onComplete = function() display.remove(newRocket) end
 			})
 end
@@ -242,7 +244,7 @@ local widget = require( "widget" )
 
 --Function to handle button events for firebutton.
 local function HandleFireButtonEvent(event)
-	if("ended" == event.phase and died == false) then
+	if("ended" == event.phase and ship ~= nil and ship.x ~= nil) then
 		FireRocket()
 		return true
 	end
@@ -267,8 +269,9 @@ local function HandleRightButtonEvent(event)
 	
 	if(phase == "began") then
 		pressedRightBtn = true
+		pressedLieftBtn = false
 		return true
-	elseif(phase == "ended") then
+	elseif(phase == "ended" or phase == "cancelled") then
 		pressedRightBtn = false
 		return true
 	end
@@ -278,7 +281,7 @@ end -- HandleRightButtonEvent
 
 local rightButton = widget.newButton
 {
-	left = display.contentCenterX + 90,
+	left = display.contentCenterX + 95,
 	top = display.contentHeight - 40,
 	width = 60,
 	height = 60,
@@ -292,6 +295,7 @@ local function HandleleftButtonEvent(event)
 	local phase = event.phase
 	if(phase == "began") then
 		pressedLieftBtn = true
+		pressedRightBtn = false
 		return true
 	elseif(phase == "ended") then
 		pressedLieftBtn = false
@@ -303,7 +307,7 @@ end -- HandleLeftButtonEvent
 
 local leftButton = widget.newButton
 {
-	left = display.contentCenterX + 30,
+	left = display.contentCenterX + 25,
 	top = display.contentHeight - 40,
 	width = 60,
 	height = 60,
@@ -312,9 +316,9 @@ local leftButton = widget.newButton
 	onEvent = HandleleftButtonEvent,
 }
 
-leftButton.alpha = 0.5
-rightButton.alpha = 0.5
-fireButton.alpha = 0.5
+leftButton.alpha = 0.7
+rightButton.alpha = 0.7
+fireButton.alpha = 0.7
 
 -- Move ship function it works by dragging ship.
 local function DragShip(event)
@@ -344,7 +348,7 @@ local function DragShip(event)
 		ship.x = 296
 	end
 	
-	UpdateText()
+	--UpdateText()
 	return true -- Prevents touch propagation to underlying objects.
 	
 end -- DragShip function.
@@ -393,7 +397,7 @@ local function OnCollision( event )
 			-- Increase score.
 			display.remove( obj1 )
 			display.remove (obj2)
-			score = score + 50
+			--score = score + 50
 		end
 	end
 	
@@ -406,28 +410,27 @@ local function onFrame (event)
 	local deltaTime = GetDeltaTime()
 	local moveSpeed = (0.3 * deltaTime)
 	
-	if(pressedRightBtn == true and died == false) then
+	if(pressedRightBtn == true  and ship ~= nil and ship.x ~= nil) then
 	
 		ship.x = ship.x + moveSpeed
 		
 		if (ship.x > 296 or ship.x == 296) then
 			ship.x = 296
 		end
-		UpdateText()
+		--UpdateText()
 		return true
 	end
 	
-	if (pressedLieftBtn == true and died == false) then
+	if (pressedLieftBtn == true  and ship ~= nil and ship.x ~= nil) then
 		
 		ship.x = ship.x - moveSpeed
 		
 		if(ship.x < 23 or ship.x == 23) then
 			ship.x = 23
 		end
-		UpdateText()
+		--UpdateText()
 		return true
 	end
-	
 	
 	return false
 end -- onFrame 
@@ -445,7 +448,7 @@ Runtime:addEventListener( "collision", OnCollision )
 local countEnemys = 1
 
 local function SetEnemiesPosition()
-  local distance = 60
+  local distance = 90
   local xPos = display.contentWidth - 40
   local yPos = display.contentCenterY - distance
   for i = 0, maxEnemies do
@@ -473,18 +476,22 @@ local function GameLoop()
 		if(thisFire ~= nil) then
 			FireEnemy(thisFire.x, thisFire.y)
 		end
+	else
+		-- Next round.
+		currentSpeed = currentSpeed - 100
+		fireEnemiesSpeed = fireEnemiesSpeed - 100
 	end
 	
-	for i = #enemiesTable, 1, -1 do
+	--[[for i = #enemiesTable, 1, -1 do
 		local thisEnemy = enemiesTable[i]
 		if(thisEnemy.x < -100 or 
-		thisEnemy.x > display.contentWidth + 100 or
-		thisEnemy.y < -100 or 
-		thisEnemy.y > display.contentHeight + 100) then
-			display.remove(thisEnemy)
-			table.remove(enemiesTable, i)
+			thisEnemy.x > display.contentWidth + 100 or
+			thisEnemy.y < -100 or 
+			thisEnemy.y > display.contentHeight + 100) then
+				display.remove(thisEnemy)
+				table.remove(enemiesTable, i)
 		end
-  end
+    end]]--
 	
 	if #enemiesTable == 0 then
 		countEnemys = 0
@@ -492,4 +499,4 @@ local function GameLoop()
 	
 end
 
-gameLoopTimer = timer.performWithDelay( 2000, GameLoop, 0) 
+gameLoopTimer = timer.performWithDelay( currentSpeed, GameLoop, 0) 
