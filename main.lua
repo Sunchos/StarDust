@@ -101,8 +101,9 @@ local maxEnemies = 4
 
 local prevTime = nil
 -- Add bool type for left button and right.
-local pressedLieftBtn = false
+local pressedLeftBtn = false
 local pressedRightBtn = false
+local pressedFireBtn = false
 
 local currentSpeed = 2000
 local fireEnemiesSpeed = 4000
@@ -165,7 +166,7 @@ local function RestoreShip()
     ship.y = display.contentCenterY + 150
  
     -- Fade in the ship
-    transition.to( ship, { alpha=1, time=3000,
+    transition.to( ship, { alpha=1, time=2000,
         onComplete = function()
             ship.isBodyActive = true
             died = false
@@ -244,8 +245,15 @@ local widget = require( "widget" )
 
 --Function to handle button events for firebutton.
 local function HandleFireButtonEvent(event)
-	if("ended" == event.phase and ship ~= nil and ship.x ~= nil) then
-		FireRocket()
+
+	phase = event.phase
+	if(phase == "began") then
+		pressedFireBtn = true
+		return true
+	elseif(phase == "moved") then
+		pressedFireBtn = true
+	elseif(phase == "ended" or phase == "cancelled") then
+		pressedFireBtn = false
 		return true
 	end
 	
@@ -269,12 +277,17 @@ local function HandleRightButtonEvent(event)
 	
 	if(phase == "began") then
 		pressedRightBtn = true
-		pressedLieftBtn = false
+		pressedLeftBtn = false
 		return true
 	elseif(phase == "ended" or phase == "cancelled") then
 		pressedRightBtn = false
 		return true
 	end
+	
+	--[[if(event.phase == "ended" or event.phase == "cancelled") then
+		FireRocket()
+		return true
+	end]]
 	
 	return false
 end -- HandleRightButtonEvent
@@ -294,11 +307,11 @@ local function HandleleftButtonEvent(event)
 
 	local phase = event.phase
 	if(phase == "began") then
-		pressedLieftBtn = true
+		pressedLeftBtn = true
 		pressedRightBtn = false
 		return true
 	elseif(phase == "ended") then
-		pressedLieftBtn = false
+		pressedLeftBtn = false
 		return true
 	end
 	
@@ -326,25 +339,25 @@ local function DragShip(event)
 	local ship = event.target
 	local phase = event.phase
 	
-	if( "began" == phase) then
+	if( "began" == phase and ship.x ~= nil) then
 		-- Set touch focus on the ship.
 		display.currentStage:setFocus( ship )
 		-- Store initial offset position.
 		ship.touchOffsetX = event.x - ship.x
 		--ship.touchOffsetY = event.y - ship.y
-	elseif("moved" == phase) then
+	elseif("moved" == phase and ship.x ~= nil) then
 		-- Move the ship to the new touch position.
 		ship.x = event.x - ship.touchOffsetX
 		--ship.y = event.y - ship.touchOffsetY
 		
-	elseif("ended" == phase or "cancelled" == phase) then
+	elseif("ended" == phase or "cancelled" == phase and ship.x ~= nil) then
 		-- Release touch focus on the ship.
 		display.currentStage:setFocus( nil )
 	end
 	
-	if(ship.x < 23 or ship.x == 23) then
+	if(ship.x < 23 or ship.x == 23 and ship.x ~= nil) then
 		ship.x = 23
-	elseif (ship.x > 296 or ship.x == 296) then
+	elseif (ship.x > 296 or ship.x == 296 and ship.x ~= nil) then
 		ship.x = 296
 	end
 	
@@ -421,7 +434,7 @@ local function onFrame (event)
 		return true
 	end
 	
-	if (pressedLieftBtn == true  and ship ~= nil and ship.x ~= nil) then
+	if (pressedLeftBtn == true  and ship ~= nil and ship.x ~= nil) then
 		
 		ship.x = ship.x - moveSpeed
 		
@@ -432,8 +445,69 @@ local function onFrame (event)
 		return true
 	end
 	
+	if(pressedFireBtn == true and ship ~= nil and ship.x ~= nil) then
+		FireRocket()
+		return true
+	end
+	
 	return false
 end -- onFrame 
+
+local function onKeyEvent( event )
+
+	local deltaTime = GetDeltaTime()
+	local moveSpeed = (0.3 * deltaTime)
+	
+	local keyName = event.keyName
+	local phase = event.phase
+	
+	--local message = "Key '" .. event.keyName .. "' was pressed! " .. event.phase
+	--print( message )
+	
+	if(keyName == "left" and ship ~= nil and ship.x ~= nil) then
+		
+		if(phase == "down") then
+			pressedLeftBtn = true
+			pressedRightBtn = false
+		elseif(phase == "up") then
+			pressedLeftBtn = false
+		end
+		--[[ship.x = ship.x - moveSpeed
+		
+		if(ship.x < 23 or ship.x == 23) then
+			ship.x = 23
+		end]]
+		
+		--return true
+	elseif(keyName == "right" and ship ~= nil and ship.x ~= nil ) then
+		
+		if(phase == "down") then
+			pressedRightBtn = true
+			pressedLeftBtn = false
+		elseif(phase == "up") then
+			pressedRightBtn = false
+		end
+		--[[ship.x = ship.x + moveSpeed
+		
+		if (ship.x > 296 or ship.x == 296) then
+			ship.x = 296
+		end]]
+		
+		--return true
+	elseif(keyName == "space"  and ship ~= nil and ship.x ~= nil) then
+		
+		if(phase == "down") then
+			pressedFireBtn = true
+		elseif(phase == "up") then
+			pressedFireBtn = false
+		end
+		--FireRocket()
+		
+		--return true
+	end
+	
+	return false
+end -- onKeyEvent
 
 -- SetUp Events. --
 
@@ -443,7 +517,7 @@ ship:addEventListener( "touch", DragShip )
 Runtime:addEventListener( "enterFrame", onFrame  )
 -- Game events.
 Runtime:addEventListener( "collision", OnCollision )
-
+Runtime:addEventListener( "key", onKeyEvent )
 
 local countEnemys = 1
 
