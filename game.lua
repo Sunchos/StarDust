@@ -104,7 +104,7 @@ local gameLoopTimer
 -- Left button.
 local leftButton = nil
 -- Lives value.
-local lives = 5
+local lives = 1
 -- Live text field.
 local livesText = nil
 -- Main group layer.
@@ -158,6 +158,11 @@ local function CreateEnemy(typeEnemy, xPos, yPos)
   newEnemy.y = yPos
 	 
 end -- CreateEnemy.
+
+local function EndGame()
+	composer.setVariable("finalScore", score)
+	composer.gotoScene("highscores", {time = 800, effect = "crossFade"})
+end -- EndGame.
 
 -- Fire Rocket for enemy.
 local function FireEnemy(xPos, yPos)
@@ -255,6 +260,43 @@ local function UpdateText()
 	scoreText.text = "Score: " .. score
 end -- UpdateText function.
 
+-- Loop function.
+local function GameLoop()
+	-- SetUp prevTime.
+    --prevTime = system.getTimer()
+	
+	if(maxEnemies >= countEnemys) then
+		SetEnemiesPosition()
+	end
+
+	if(--[[math.round((prevTime % 1000) % 2)== 0 and]] #enemiesTable ~= 0) then
+		local thisFire =enemiesTable[math.random(#enemiesTable)]
+		if(thisFire ~= nil) then
+			FireEnemy(thisFire.x, thisFire.y)
+		end
+	else
+		-- Next round.
+		currentSpeed = currentSpeed - 100
+		fireEnemiesSpeed = fireEnemiesSpeed - 100
+	end
+	
+	--[[for i = #enemiesTable, 1, -1 do
+		local thisEnemy = enemiesTable[i]
+		if(thisEnemy.x < -100 or 
+			thisEnemy.x > display.contentWidth + 100 or
+			thisEnemy.y < -100 or 
+			thisEnemy.y > display.contentHeight + 100) then
+				display.remove(thisEnemy)
+				table.remove(enemiesTable, i)
+		end
+    end]]--
+	
+	if #enemiesTable == 0 then
+		countEnemys = 0
+	end
+	
+end -- GameLoop.
+
 -- ----------------------------------------------------------------------------------------
 -- Controls, buttons and etc.
 -- ----------------------------------------------------------------------------------------
@@ -341,7 +383,7 @@ local function HandleRightButtonEvent(event)
 	return false
 end -- HandleRightButtonEvent.
 
-fireButton = widget.newButton
+local fireButton = widget.newButton
 {
 	left = display.contentCenterX - 150,
 	top = display.contentHeight - 40,
@@ -352,7 +394,7 @@ fireButton = widget.newButton
 	onEvent = HandleFireButtonEvent,
 }
 
-leftButton = widget.newButton
+local leftButton = widget.newButton
 {
 	left = display.contentCenterX + 25,
 	top = display.contentHeight - 40,
@@ -363,7 +405,7 @@ leftButton = widget.newButton
 	onEvent = HandleLeftButtonEvent,
 }
 
-rightButton = widget.newButton
+local rightButton = widget.newButton
 {
 	left = display.contentCenterX + 95,
 	top = display.contentHeight - 40,
@@ -505,6 +547,7 @@ local function OnCollision( event )
 					
                     if ( lives == 0 ) then
                         display.remove( ship )
+						timer.performWithDelay( 2000, EndGame)
                     else
                         ship.alpha = 0
                         timer.performWithDelay( 1000, RestoreShip )
@@ -523,43 +566,6 @@ local function OnCollision( event )
 	UpdateText()
 	return false
 end -- OnCollision.
-
--- Loop function.
-local function GameLoop()
-	-- SetUp prevTime.
-    --prevTime = system.getTimer()
-	
-	if(maxEnemies >= countEnemys) then
-		SetEnemiesPosition()
-	end
-
-	if(--[[math.round((prevTime % 1000) % 2)== 0 and]] #enemiesTable ~= 0) then
-		local thisFire =enemiesTable[math.random(#enemiesTable)]
-		if(thisFire ~= nil) then
-			FireEnemy(thisFire.x, thisFire.y)
-		end
-	else
-		-- Next round.
-		currentSpeed = currentSpeed - 100
-		fireEnemiesSpeed = fireEnemiesSpeed - 100
-	end
-	
-	--[[for i = #enemiesTable, 1, -1 do
-		local thisEnemy = enemiesTable[i]
-		if(thisEnemy.x < -100 or 
-			thisEnemy.x > display.contentWidth + 100 or
-			thisEnemy.y < -100 or 
-			thisEnemy.y > display.contentHeight + 100) then
-				display.remove(thisEnemy)
-				table.remove(enemiesTable, i)
-		end
-    end]]--
-	
-	if #enemiesTable == 0 then
-		countEnemys = 0
-	end
-	
-end -- GameLoop.
 
 -- ----------------------------------------------------------------------------------------
 -- Scene event functions.

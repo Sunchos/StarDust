@@ -10,17 +10,17 @@ local scene = composer.newScene()
 
 -- The function which tells Composer to move to the game scene.
 local function gotoGame()
-	composer.gotoScene( "game" )
+	composer.gotoScene( "game" , { time=800, effect="crossFade" })
 end -- gotoGame.
 
 -- The function which tells Composer to move to the game scene.
 local function gotoHighScores()
-	composer.gotoScene( "highscores" )
+	composer.gotoScene( "highscores", { time=800, effect="crossFade" })
 end -- gotoHighScore.
 
 -- The function which tells Composer to move to the game scene.
 local function gotoSettings()
-	composer.gotoScene( "settings" )
+	composer.gotoScene( "settings", { time=800, effect="crossFade" })
 end -- gotoSettings.
 
 -- ----------------------------------------------------------------------------------------
